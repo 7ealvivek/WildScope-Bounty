@@ -73,13 +73,24 @@ def search_by_org(api, org, aggressive=False):
             for match in results.get("matches", []):
                 hostnames = match.get("hostnames", [])
                 domains.update(extract_domains_from_hostnames(hostnames, org))
+
                 ssl = match.get("ssl", {}).get("cert", {})
-                subject = ssl.get("subject", {}).get("CN", "")
-                if subject:
-                    domains.update(extract_domains_from_hostnames([subject], org))
-                alt_names = ssl.get("extensions", {}).get("subject_alt_name", "")
-                if isinstance(alt_names, str):
-                    domains.update(extract_domains_from_hostnames(alt_names.split(", "), org))
+
+                if isinstance(ssl, list):
+                    for cert in ssl:
+                        subject = cert.get("subject", {}).get("CN", "")
+                        if subject:
+                            domains.update(extract_domains_from_hostnames([subject], org))
+                        alt_names = cert.get("extensions", {}).get("subject_alt_name", "")
+                        if isinstance(alt_names, str):
+                            domains.update(extract_domains_from_hostnames(alt_names.split(", "), org))
+                elif isinstance(ssl, dict):
+                    subject = ssl.get("subject", {}).get("CN", "")
+                    if subject:
+                        domains.update(extract_domains_from_hostnames([subject], org))
+                    alt_names = ssl.get("extensions", {}).get("subject_alt_name", "")
+                    if isinstance(alt_names, str):
+                        domains.update(extract_domains_from_hostnames(alt_names.split(", "), org))
         except shodan.APIError as e:
             print(f"[-] Shodan error: {e}")
     return sorted(domains)
